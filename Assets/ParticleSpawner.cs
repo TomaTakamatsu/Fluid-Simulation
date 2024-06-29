@@ -5,78 +5,57 @@ using Unity.Mathematics;
 
 public class ParticleSpawner : MonoBehaviour
 {
-    public int NumOfParticles = 1;
-    public int WidthOfStart = 5;
-    public int HeightFromTop = 20;
+    public Particle Prefab;
 
-    public float ParticleSize = 1f;
-    public float ParticleSpacing = 0.5f;
+    public int NumOfParticles = 10;
+    public float SizeOfParticles = 5;
+    public float SpacingOfParticles = 1;
 
-    public Material circleMaterial; // Add this line
+    public float BorderWidth = 50;
+    public float BorderHeight = 28;
 
-    private Vector2[] ParticlePositions;
-
-    private void Awake()
-    {
-        int rows = Mathf.CeilToInt((float)NumOfParticles / WidthOfStart);
-        ParticlePositions = new Vector2[NumOfParticles];
-        int startX = Screen.mainWindowPosition.x + Mathf.CeilToInt((NumOfParticles * 0.5f) * (ParticleSize + ParticleSpacing));
-        int startY = Screen.mainWindowPosition.y;
-        int particleIndex = 0;
-        for (int y = 0; y < rows; y++)
-        {
-            for (int x = 0; x < WidthOfStart; x++)
-            {
-                particleIndex = x * y;
-                if (particleIndex >= NumOfParticles) break;
-                ParticlePositions[particleIndex] = new Vector2(startX + Mathf.CeilToInt(x * (ParticleSize + ParticleSpacing)), startY - Mathf.CeilToInt(y * (ParticleSize + ParticleSpacing)));
-            }
-        }
-
-        for (int i = 0; i < NumOfParticles; i++)
-        {
-            DrawCircle(ParticlePositions[i], ParticleSize / 2);
-        }
-    }
+    Particle[] Particles;
+    Vector3[] ParticlePositions;
+    Vector3[] ParticleVelocities;
 
     private void Start()
+    {
+        Particles = new Particle[NumOfParticles];
+        ParticlePositions = new Vector3[NumOfParticles];
+        ParticleVelocities = new Vector3[NumOfParticles];
+
+        int particlesInRow = (int)math.sqrt(NumOfParticles);
+        int particlesInCol = (NumOfParticles - 1) / particlesInRow + 1;
+        float spacing = SizeOfParticles * 2 + SpacingOfParticles;
+
+        SpawnParticle(new Vector3(Screen.width / 2, Screen.height / 2, 0), SizeOfParticles);
+    }
+
+    private void DrawBorder()
+    {
+        Debug.DrawLine(new Vector3(-1 * BorderWidth / 2, BorderHeight / 2, 0), new Vector3(BorderWidth / 2, BorderHeight / 2, 0), Color.green);
+    }
+
+    private void Update()
     {
         
     }
 
-    private void DrawCircle(Vector2 center, float radius, int numSegments = 100)
+    private Particle SpawnParticle(Vector3 position, float radius)
     {
-        GameObject circleObject = new GameObject("FilledCircle_" + center);
-        circleObject.transform.position = new Vector3(center.x, center.y, 0); // Ensure z = 0
+        Particle particleToSpawn = Instantiate(
+            Prefab,
+            position,
+            Quaternion.identity,
+            transform
+        );
+        particleToSpawn.transform.localScale = new Vector3(radius, radius, 1);
 
-        MeshFilter mf = circleObject.AddComponent<MeshFilter>();
-        MeshRenderer mr = circleObject.AddComponent<MeshRenderer>();
-        mr.material = circleMaterial;
+        return particleToSpawn;
+    }
 
-        Mesh mesh = new Mesh();
-        mf.mesh = mesh;
-
-        Vector3[] vertices = new Vector3[numSegments + 1];
-        int[] triangles = new int[numSegments * 3];
-        vertices[0] = Vector3.zero;
-
-        float angle = 2 * Mathf.PI / numSegments;
-        for (int i = 1; i <= numSegments; i++)
-        {
-            float x = Mathf.Cos(i * angle) * radius;
-            float y = Mathf.Sin(i * angle) * radius;
-            vertices[i] = new Vector3(x, y, 0);
-        }
-
-        for (int i = 0; i < numSegments; i++)
-        {
-            triangles[i * 3] = 0;
-            triangles[i * 3 + 1] = i + 1;
-            triangles[i * 3 + 2] = (i + 2 > numSegments) ? 1 : i + 2;
-        }
-
-        mesh.vertices = vertices;
-        mesh.triangles = triangles;
-        mesh.RecalculateNormals();
+    private void MoveParticle(Vector3 velocity, int index)
+    {
+        Particles[index].transform.position += velocity * Time.deltaTime;
     }
 }
