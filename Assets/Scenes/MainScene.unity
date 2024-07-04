@@ -285,7 +285,7 @@ Camera:
   far clip plane: 100
   field of view: 60
   orthographic: 1
-  orthographic size: 15
+  orthographic size: 20
   m_Depth: 0
   m_CullingMask:
     serializedVersion: 2
@@ -434,13 +434,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   lineMaterial: {fileID: 2100000, guid: ac6aa97c823544e299de29f609795c82, type: 2}
   Prefab: {fileID: -7563822893254676511, guid: 02a7802be85f54673b907aacce486635, type: 3}
-  NumOfParticles: 1
-  SizeOfParticles: 2
-  SpacingOfParticles: 0.4
+  NumOfParticles: 900
+  SizeOfParticles: 1
+  SpacingOfParticles: 0.2
   CollisionDamper: 0.85
   Gravity: 100
-  BorderWidth: 62.3
-  BorderHeight: 30
+  BorderWidth: 76
+  BorderHeight: 38
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0

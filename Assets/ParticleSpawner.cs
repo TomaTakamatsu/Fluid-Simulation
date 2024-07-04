@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using Unity.Mathematics;
+using UnityEngine.UI;
 
 public class ParticleSpawner : MonoBehaviour
 {
@@ -50,8 +51,6 @@ public class ParticleSpawner : MonoBehaviour
             float y = (i / particlesInRow - particlesInCol / 2f + 0.5f) * spacing + (Screen.height / 2);
             ParticlePositions[i] = new Vector3(x, y, 0);
             Particles[i] = SpawnParticle(ParticlePositions[i], SizeOfParticles / 2);
-
-            ParticleForces[i] = Vector3.down * Gravity;
         }
     }
 
@@ -60,6 +59,7 @@ public class ParticleSpawner : MonoBehaviour
         for (int i = 0; i < NumOfParticles; i++)
         {
             ResolveCollision(i);
+            CalculateForces(i);
             ParticleVelocities[i] += ParticleForces[i] * Time.deltaTime;
             Particles[i].transform.position += ParticleVelocities[i] * Time.deltaTime;
         }
@@ -96,14 +96,17 @@ public class ParticleSpawner : MonoBehaviour
         {
             Particles[index].transform.position.Set(currentPosition.x, LowerBound + SizeOfParticles / 2f, 0);
             ParticleVelocities[index].y *= -1 * CollisionDamper;
-
-            Debug.LogError(ParticleVelocities[index]);
         }
         else if (currentPosition.y + SizeOfParticles / 2f > UpperBound)
         {
             Particles[index].transform.position.Set(currentPosition.x, UpperBound - SizeOfParticles / 2f, 0);
             ParticleVelocities[index].y *= -1 * CollisionDamper;
         }
+    }
+
+    private void CalculateForces(int index)
+    {
+
     }
 
     private void DrawBorder()
@@ -117,8 +120,8 @@ public class ParticleSpawner : MonoBehaviour
         }
 
         lineRenderer.positionCount = 5;
-        lineRenderer.startWidth = 0.1f;
-        lineRenderer.endWidth = 0.1f;
+        lineRenderer.startWidth = 0.05f;
+        lineRenderer.endWidth = 0.05f;
         lineRenderer.useWorldSpace = true;
         lineRenderer.material = lineMaterial;
         lineRenderer.startColor = Color.green;
