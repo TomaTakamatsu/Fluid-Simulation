@@ -15,7 +15,9 @@ public class ParticleSpawner : MonoBehaviour
     public float SpacingOfParticles = 1;
 
     public float CollisionDamper = 1;
-    public float Gravity = 10;
+    public float Gravity = 0;
+
+    public float SmoothingRadius = 1;
 
     public float BorderWidth = 30;
     public float BorderHeight = 14;
@@ -60,8 +62,9 @@ public class ParticleSpawner : MonoBehaviour
         {
             ResolveCollision(i);
             CalculateForces(i);
-            ParticleVelocities[i] += ParticleForces[i] * Time.deltaTime;
+            ParticleVelocities[i] += (ParticleForces[i] + Vector3.down * Gravity)* Time.deltaTime;
             Particles[i].transform.position += ParticleVelocities[i] * Time.deltaTime;
+            ParticlePositions[i] = Particles[i].transform.position;
         }
     }
 
@@ -106,6 +109,13 @@ public class ParticleSpawner : MonoBehaviour
 
     private void CalculateForces(int index)
     {
+
+    }
+
+    private float GetSmoothingRadius(float radius, float dist)
+    {
+        float value = math.max(0, radius - dist);
+        return value * value * value;
 
     }
 
