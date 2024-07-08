@@ -14,6 +14,7 @@ public class ParticleSpawner : MonoBehaviour
     public int NumOfParticles = 1;
     public float SizeOfParticles = 1;
     public float SpacingOfParticles = 1;
+    public bool SpawnRandom = false;
 
     public float CollisionDamper = 1;
     public float Gravity = 0;
@@ -37,7 +38,6 @@ public class ParticleSpawner : MonoBehaviour
     Vector3[] ParticleVelocities;
     Vector3[] ParticleForces;
     float[] ParticleDensities;
-    float[] ParticleProperties;
 
     private void Start()
     {
@@ -49,19 +49,30 @@ public class ParticleSpawner : MonoBehaviour
         ParticleVelocities = new Vector3[NumOfParticles];
         ParticleForces = new Vector3[NumOfParticles];
         ParticleDensities = new float[NumOfParticles];
-        ParticleProperties = new float[NumOfParticles];
 
-        int particlesInRow = (int)math.sqrt(NumOfParticles);
-        int particlesInCol = (NumOfParticles - 1) / particlesInRow + 1;
-        float spacing = SizeOfParticles * (1 + SpacingOfParticles);
-
-        for (int i = 0; i < NumOfParticles; i++)
+        if (!SpawnRandom)
         {
-            float x = (i % particlesInRow - particlesInRow / 2f + 0.5f) * spacing + (Screen.width / 2);
-            float y = (i / particlesInRow - particlesInCol / 2f + 0.5f) * spacing + (Screen.height / 2);
-            ParticlePositions[i] = new Vector3(x, y, 0);
-            Particles[i] = SpawnParticle(ParticlePositions[i], SizeOfParticles / 2);
+            int particlesInRow = (int)math.sqrt(NumOfParticles);
+            int particlesInCol = (NumOfParticles - 1) / particlesInRow + 1;
+            float spacing = SizeOfParticles * (1 + SpacingOfParticles);
+
+            for (int i = 0; i < NumOfParticles; i++)
+            {
+                float x = (i % particlesInRow - particlesInRow / 2f + 0.5f) * spacing + (Screen.width / 2);
+                float y = (i / particlesInRow - particlesInCol / 2f + 0.5f) * spacing + (Screen.height / 2);
+                ParticlePositions[i] = new Vector3(x, y, 0);
+                Particles[i] = SpawnParticle(ParticlePositions[i], SizeOfParticles / 2);
+            }
         }
+        else
+        {
+            for (int i = 0; i < NumOfParticles; i++)
+            {
+                ParticlePositions[i] = new Vector3(UnityEngine.Random.Range(LeftBound, RightBound), UnityEngine.Random.Range(LowerBound, UpperBound), 0);
+                Particles[i] = SpawnParticle(ParticlePositions[i], SizeOfParticles / 2);
+            }
+        }
+        
     }
 
     private void Update()
@@ -71,7 +82,6 @@ public class ParticleSpawner : MonoBehaviour
         {
             ParticleVelocities[i] += (ParticleForces[i] / ParticleDensities[i] + Vector3.down * Gravity)* Time.deltaTime;
             ResolveCollision(i);
-            Debug.LogError(ParticleVelocities[i]);
             Particles[i].transform.position += ParticleVelocities[i] * Time.deltaTime;
             ParticlePositions[i] = Particles[i].transform.position;
         }
@@ -95,23 +105,23 @@ public class ParticleSpawner : MonoBehaviour
         Vector3 currentPosition = Particles[index].transform.position;
         if (currentPosition.x - SizeOfParticles / 2f < LeftBound)
         {
-            Particles[index].transform.position.Set(LeftBound + SizeOfParticles / 2f, currentPosition.y, 0);
+            Particles[index].transform.position = new Vector3(LeftBound + SizeOfParticles / 2f, currentPosition.y, 0);
             ParticleVelocities[index].x *= -1 * CollisionDamper;
         }
         else if (currentPosition.x + SizeOfParticles / 2f > RightBound)
         {
-            Particles[index].transform.position.Set(RightBound - SizeOfParticles / 2f, currentPosition.y, 0);
+            Particles[index].transform.position = new Vector3(RightBound - SizeOfParticles / 2f, currentPosition.y, 0);
             ParticleVelocities[index].x *= -1 * CollisionDamper;
         }
 
-        if (currentPosition.y - SizeOfParticles / 4f < LowerBound)
+        if (currentPosition.y - SizeOfParticles / 2f < LowerBound)
         {
-            Particles[index].transform.position.Set(currentPosition.x, LowerBound + SizeOfParticles / 2f, 0);
+            Particles[index].transform.position = new Vector3(currentPosition.x, LowerBound + SizeOfParticles / 2f, 0);
             ParticleVelocities[index].y *= -1 * CollisionDamper;
         }
         else if (currentPosition.y + SizeOfParticles / 2f > UpperBound)
         {
-            Particles[index].transform.position.Set(currentPosition.x, UpperBound - SizeOfParticles / 2f, 0);
+            Particles[index].transform.position = new Vector3(currentPosition.x, UpperBound - SizeOfParticles / 2f, 0);
             ParticleVelocities[index].y *= -1 * CollisionDamper;
         }
     }
@@ -126,17 +136,16 @@ public class ParticleSpawner : MonoBehaviour
     }
 
     private float GetSmoothingRadius(float radius, float dist) {
-        float volume = math.PI * math.pow(radius, 8) / 4;
-        float value = math.max(0, radius - dist);
-        return value * value * value / volume;
+        if (dist >= radius) return 0;
+        float volume = (math.PI * math.pow(radius, 4)) / 6;
+        return (radius - dist) * (radius - dist) / volume;
     }
 
     private float GetSmoothingDerivative(float radius, float dist)
     {
         if (dist >= radius) return 0;
-        float f = radius - dist;
-        float scale = -24 / (math.PI * math.pow(radius, 8));
-        return scale * dist * f * f;
+        float scale = 12 / (math.pow(radius, 4) * math.PI);
+        return (radius - dist) * scale;
     }
 
     private float GetDensity(Vector3 point)
@@ -164,18 +173,11 @@ public class ParticleSpawner : MonoBehaviour
             float dist = offset.magnitude;
             Vector3 direction = dist == 0 ? GetRandomDirection() : offset / dist;
             float slope = GetSmoothingDerivative(SmoothingRadius, dist);
-            float density = GetDensity(ParticlePositions[i]);
-            pressureForce += Mass * -DensityToPressure(density) * slope * direction / density;
+            float density = ParticleDensities[i];
+            float sharedPressure = GetSharedPressure(density, ParticleDensities[index]);
+            pressureForce += Mass * sharedPressure * slope * direction / density;
         }
         return pressureForce;
-    }
-
-    private void CalculateParticleProperties()
-    {
-        for (int i = 0; i < NumOfParticles; i++)
-        {
-            ParticleProperties[i] = RandFunction(ParticlePositions[i]);
-        }
     }
 
     private void CalculateParticleDensities()
@@ -192,10 +194,13 @@ public class ParticleSpawner : MonoBehaviour
         return error * PressureMultiplier;
     }
 
-    private float RandFunction(Vector3 point)
+    private float GetSharedPressure(float densityA, float densityB)
     {
-        return math.cos(point.y - 3 + math.sin(point.x));
+        float pressureA = DensityToPressure(densityA);
+        float pressureB = DensityToPressure(densityB);
+        return (pressureA + pressureB) / 2;
     }
+
 
     private Vector3 GetRandomDirection()
     {
