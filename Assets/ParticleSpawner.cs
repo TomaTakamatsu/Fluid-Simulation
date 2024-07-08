@@ -32,9 +32,11 @@ public class ParticleSpawner : MonoBehaviour
     private float LowerBound;
     private float UpperBound;
 
+    private float DeltaTime = 1 / 120f;
 
     Particle[] Particles;
     Vector3[] ParticlePositions;
+    Vector3[] ParticlePositionPredictions;
     Vector3[] ParticleVelocities;
     Vector3[] ParticleForces;
     float[] ParticleDensities;
@@ -46,6 +48,7 @@ public class ParticleSpawner : MonoBehaviour
 
         Particles = new Particle[NumOfParticles];
         ParticlePositions = new Vector3[NumOfParticles];
+        ParticlePositionPredictions = new Vector3[NumOfParticles];
         ParticleVelocities = new Vector3[NumOfParticles];
         ParticleForces = new Vector3[NumOfParticles];
         ParticleDensities = new float[NumOfParticles];
@@ -61,6 +64,7 @@ public class ParticleSpawner : MonoBehaviour
                 float x = (i % particlesInRow - particlesInRow / 2f + 0.5f) * spacing + (Screen.width / 2);
                 float y = (i / particlesInRow - particlesInCol / 2f + 0.5f) * spacing + (Screen.height / 2);
                 ParticlePositions[i] = new Vector3(x, y, 0);
+                ParticlePositionPredictions[i] = new Vector3(x, y, 0);
                 Particles[i] = SpawnParticle(ParticlePositions[i], SizeOfParticles / 2);
             }
         }
@@ -69,6 +73,7 @@ public class ParticleSpawner : MonoBehaviour
             for (int i = 0; i < NumOfParticles; i++)
             {
                 ParticlePositions[i] = new Vector3(UnityEngine.Random.Range(LeftBound, RightBound), UnityEngine.Random.Range(LowerBound, UpperBound), 0);
+                ParticlePositionPredictions[i] = new Vector3(ParticlePositions[i].x, ParticlePositions[i].y, 0);
                 Particles[i] = SpawnParticle(ParticlePositions[i], SizeOfParticles / 2);
             }
         }
@@ -84,6 +89,7 @@ public class ParticleSpawner : MonoBehaviour
             ResolveCollision(i);
             Particles[i].transform.position += ParticleVelocities[i] * Time.deltaTime;
             ParticlePositions[i] = Particles[i].transform.position;
+            ParticlePositionPredictions[i] = ParticlePositions[i] + ParticleVelocities[i] * DeltaTime;
         }
     }
 
@@ -106,23 +112,27 @@ public class ParticleSpawner : MonoBehaviour
         if (currentPosition.x - SizeOfParticles / 2f < LeftBound)
         {
             Particles[index].transform.position = new Vector3(LeftBound + SizeOfParticles / 2f, currentPosition.y, 0);
-            ParticleVelocities[index].x *= -1 * CollisionDamper;
+            ParticleVelocities[index].x *= -1;
+            ParticleVelocities[index] *= CollisionDamper;
         }
         else if (currentPosition.x + SizeOfParticles / 2f > RightBound)
         {
             Particles[index].transform.position = new Vector3(RightBound - SizeOfParticles / 2f, currentPosition.y, 0);
-            ParticleVelocities[index].x *= -1 * CollisionDamper;
+            ParticleVelocities[index].x *= -1;
+            ParticleVelocities[index] *= CollisionDamper;
         }
 
         if (currentPosition.y - SizeOfParticles / 2f < LowerBound)
         {
             Particles[index].transform.position = new Vector3(currentPosition.x, LowerBound + SizeOfParticles / 2f, 0);
-            ParticleVelocities[index].y *= -1 * CollisionDamper;
+            ParticleVelocities[index].y *= -1;
+            ParticleVelocities[index] *= CollisionDamper;
         }
         else if (currentPosition.y + SizeOfParticles / 2f > UpperBound)
         {
             Particles[index].transform.position = new Vector3(currentPosition.x, UpperBound - SizeOfParticles / 2f, 0);
-            ParticleVelocities[index].y *= -1 * CollisionDamper;
+            ParticleVelocities[index].y *= -1;
+            ParticleVelocities[index] *= CollisionDamper;
         }
     }
 
@@ -154,7 +164,7 @@ public class ParticleSpawner : MonoBehaviour
 
         for (int i = 0; i < NumOfParticles; i++)
         {
-            float distance = (ParticlePositions[i] - point).magnitude;
+            float distance = (ParticlePositionPredictions[i] - point).magnitude;
             float influence = GetSmoothingRadius(SmoothingRadius, distance);
             density += Mass * influence;
         }
@@ -169,7 +179,7 @@ public class ParticleSpawner : MonoBehaviour
         {
             if (i == index) continue;
 
-            Vector3 offset = ParticlePositions[i] - ParticlePositions[index];
+            Vector3 offset = ParticlePositionPredictions[i] - ParticlePositionPredictions[index];
             float dist = offset.magnitude;
             Vector3 direction = dist == 0 ? GetRandomDirection() : offset / dist;
             float slope = GetSmoothingDerivative(SmoothingRadius, dist);
@@ -184,7 +194,7 @@ public class ParticleSpawner : MonoBehaviour
     {
         for (int i = 0; i < NumOfParticles; i++)
         {
-            ParticleDensities[i] = GetDensity(ParticlePositions[i]);
+            ParticleDensities[i] = GetDensity(ParticlePositionPredictions[i]);
         }
     }
 
