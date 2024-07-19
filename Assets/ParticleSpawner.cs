@@ -32,18 +32,23 @@ public class ParticleSpawner : MonoBehaviour
     private float LowerBound;
     private float UpperBound;
 
-    private float DeltaTime = 1 / 120f;
+    private Particle[] Particles;
+    private Vector3[] ParticlePositions;
+    private Vector3[] ParticlePositionPredictions;
+    private Vector3[] ParticleVelocities;
+    private Vector3[] ParticleForces;
+    private float[] ParticleDensities;
 
-    Particle[] Particles;
-    Vector3[] ParticlePositions;
-    Vector3[] ParticlePositionPredictions;
-    Vector3[] ParticleVelocities;
-    Vector3[] ParticleForces;
-    float[] ParticleDensities;
+    private float DeltaTime = 1 / 120f;
+    private SpriteRenderer ParticleRenderer;
+    private List<int>[,] GridMatrix;
+    private int[] ParticlePositionMatrix;
+    private int GridRows;
+    private int GridCols;
+    private int MatrixMapper;
 
     private void Start()
     {
-
         DrawBorder();
 
         Particles = new Particle[NumOfParticles];
@@ -66,6 +71,9 @@ public class ParticleSpawner : MonoBehaviour
                 ParticlePositions[i] = new Vector3(x, y, 0);
                 ParticlePositionPredictions[i] = new Vector3(x, y, 0);
                 Particles[i] = SpawnParticle(ParticlePositions[i], SizeOfParticles / 2);
+
+                // ParticleRenderer = Particles[i].GetComponent<SpriteRenderer>();
+                // ParticleRenderer.color = Color.blue;
             }
         }
         else
@@ -77,7 +85,9 @@ public class ParticleSpawner : MonoBehaviour
                 Particles[i] = SpawnParticle(ParticlePositions[i], SizeOfParticles / 2);
             }
         }
-        
+
+        SetGrid();
+
     }
 
     private void Update()
@@ -90,6 +100,7 @@ public class ParticleSpawner : MonoBehaviour
             Particles[i].transform.position += ParticleVelocities[i] * Time.deltaTime;
             ParticlePositions[i] = Particles[i].transform.position;
             ParticlePositionPredictions[i] = ParticlePositions[i] + ParticleVelocities[i] * DeltaTime;
+            UpdateGrid();
         }
     }
 
@@ -104,6 +115,78 @@ public class ParticleSpawner : MonoBehaviour
         particleToSpawn.transform.localScale = new Vector3(radius, radius, 1);
 
         return particleToSpawn;
+    }
+
+    private void SetGrid()
+    {
+        GridRows = Mathf.CeilToInt(BorderHeight / SmoothingRadius);
+        GridCols = Mathf.CeilToInt(BorderWidth / SmoothingRadius);
+        MatrixMapper = Mathf.Max(GridRows, GridCols) + 1;
+        GridMatrix = new List<int>[GridRows, GridCols];
+        ParticlePositionMatrix = new int[NumOfParticles];
+        for (int i = 0; i < GridRows; i++) {
+            for (int j = 0; j < GridCols; j++)
+            {
+                GridMatrix[i, j] = new List<int>();
+            }
+        }
+
+        for (int i = 0; i < NumOfParticles; i++){
+            int row = Mathf.FloorToInt((ParticlePositionPredictions[i].y - LowerBound) / SmoothingRadius);
+            int col = Mathf.FloorToInt((ParticlePositionPredictions[i].x - LeftBound) / SmoothingRadius);
+
+            GridMatrix[row, col].Add(i);
+            ParticlePositionMatrix[i] = MatrixMapper * row + col;
+        }
+
+
+    }
+
+    private void UpdateGrid()
+    {
+        for (int i = 0; i < GridRows; i++)
+        {
+            for (int j = 0; j < GridCols; j++)
+            {
+                GridMatrix[i, j] = new List<int>();
+            }
+        }
+
+        for (int i = 0; i < NumOfParticles; i++)
+        {
+            int col = Mathf.FloorToInt((ParticlePositionPredictions[i].x - LeftBound) / SmoothingRadius);
+            int row = Mathf.FloorToInt((ParticlePositionPredictions[i].y - LowerBound) / SmoothingRadius);
+
+            if (row < 0) row = 0;
+            if (row > GridRows - 1) row = GridRows - 1;
+            if (col < 0) col = 0;
+            if (col > GridCols - 1) col = GridCols - 1;
+
+            GridMatrix[row, col].Add(i);
+            ParticlePositionMatrix[i] = MatrixMapper * row + col;
+        }
+    }
+
+    private List<int> GetNeighbors(int index)
+    {
+        List<int> neighbors = new List<int>();
+        int row = ParticlePositionMatrix[index] / MatrixMapper;
+        int col = ParticlePositionMatrix[index] % MatrixMapper;
+
+        for (int i = -1; i < 2; i++)
+        {
+            for (int j = -1; j < 2; j++)
+            {
+                int rowToCheck = row + i;
+                int colToCheck = col + j;
+                if (rowToCheck > -1 && rowToCheck < GridRows && colToCheck > -1 && colToCheck < GridCols)
+                {
+                    neighbors.AddRange(GridMatrix[rowToCheck, colToCheck]);
+                }
+            }
+        }
+
+        return neighbors;
     }
 
     private void ResolveCollision(int index)
@@ -174,8 +257,9 @@ public class ParticleSpawner : MonoBehaviour
     private Vector3 GetPressureForce(int index)
     {
         Vector3 pressureForce = Vector3.zero;
+        List<int> neighbors = GetNeighbors(index);
 
-        for (int i = 0; i < NumOfParticles; i++)
+        foreach (int i in neighbors)
         {
             if (i == index) continue;
 
@@ -187,6 +271,19 @@ public class ParticleSpawner : MonoBehaviour
             float sharedPressure = GetSharedPressure(density, ParticleDensities[index]);
             pressureForce += Mass * sharedPressure * slope * direction / density;
         }
+
+        //for (int i = 0; i < NumOfParticles; i++)
+        //{
+        //    if (i == index) continue;
+
+        //    Vector3 offset = ParticlePositionPredictions[i] - ParticlePositionPredictions[index];
+        //    float dist = offset.magnitude;
+        //    Vector3 direction = dist == 0 ? GetRandomDirection() : offset / dist;
+        //    float slope = GetSmoothingDerivative(SmoothingRadius, dist);
+        //    float density = ParticleDensities[i];
+        //    float sharedPressure = GetSharedPressure(density, ParticleDensities[index]);
+        //    pressureForce += Mass * sharedPressure * slope * direction / density;
+        //}
         return pressureForce;
     }
 
@@ -231,8 +328,8 @@ public class ParticleSpawner : MonoBehaviour
         }
 
         lineRenderer.positionCount = 5;
-        lineRenderer.startWidth = 0.05f;
-        lineRenderer.endWidth = 0.05f;
+        lineRenderer.startWidth = 0.1f;
+        lineRenderer.endWidth = 0.1f;
         lineRenderer.useWorldSpace = true;
         lineRenderer.material = lineMaterial;
         lineRenderer.startColor = Color.green;
@@ -256,69 +353,3 @@ public class ParticleSpawner : MonoBehaviour
         lineRenderer.SetPosition(4, topLeft);
     }
 }
-
-
-
-//using System.Collections;
-//using System.Collections.Generic;
-//using UnityEngine;
-//using Unity.Mathematics;
-
-//public class ParticleSpawner : MonoBehaviour
-//{
-//    public Particle Prefab;
-
-//    public int NumOfParticles = 10;
-//    public float SizeOfParticles = 5;
-//    public float SpacingOfParticles = 1;
-
-//    public float BorderWidth = 30;
-//    public float BorderHeight = 14;
-
-//    Particle[] Particles;
-//    Vector3[] ParticlePositions;
-//    Vector3[] ParticleVelocities;
-
-//    private void Start()
-//    {
-//        DrawBorder();
-
-//        Particles = new Particle[NumOfParticles];
-//        ParticlePositions = new Vector3[NumOfParticles];
-//        ParticleVelocities = new Vector3[NumOfParticles];
-
-//        int particlesInRow = (int)math.sqrt(NumOfParticles);
-//        int particlesInCol = (NumOfParticles - 1) / particlesInRow + 1;
-//        float spacing = SizeOfParticles * 2 + SpacingOfParticles;
-
-//        SpawnParticle(new Vector3(Screen.width / 2, Screen.height / 2, 0), SizeOfParticles);
-//    }
-
-//    private void DrawBorder()
-//    {
-
-//    }
-
-//    private void Update()
-//    {
-
-//    }
-
-//    private Particle SpawnParticle(Vector3 position, float radius)
-//    {
-//        Particle particleToSpawn = Instantiate(
-//            Prefab,
-//            position,
-//            Quaternion.identity,
-//            transform
-//        );
-//        particleToSpawn.transform.localScale = new Vector3(radius, radius, 1);
-
-//        return particleToSpawn;
-//    }
-
-//    private void MoveParticle(Vector3 velocity, int index)
-//    {
-//        Particles[index].transform.position += velocity * Time.deltaTime;
-//    }
-//}
