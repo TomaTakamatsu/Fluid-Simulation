@@ -100,8 +100,8 @@ public class ParticleSpawner : MonoBehaviour
             Particles[i].transform.position += ParticleVelocities[i] * Time.deltaTime;
             ParticlePositions[i] = Particles[i].transform.position;
             ParticlePositionPredictions[i] = ParticlePositions[i] + ParticleVelocities[i] * DeltaTime;
-            UpdateGrid();
         }
+        UpdateGrid();
     }
 
     private Particle SpawnParticle(Vector3 position, float radius)
@@ -311,9 +311,13 @@ public class ParticleSpawner : MonoBehaviour
 
     private Vector3 GetRandomDirection()
     {
-        Unity.Mathematics.Random rand = new Unity.Mathematics.Random();
-        float x = rand.NextFloat(-1, 1);
-        float y = rand.NextFloat(-1, 1);
+        //Unity.Mathematics.Random rand = new Unity.Mathematics.Random();
+        //float x = rand.NextFloat(-1, 1);
+        //float y = rand.NextFloat(-1, 1);
+
+        float x = UnityEngine.Random.Range(-1, 1);
+        float y = UnityEngine.Random.Range(-1, 1);
+
         return new Vector3(x, y, 0);
     }
 
